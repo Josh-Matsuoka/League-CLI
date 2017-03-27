@@ -1,2 +1,2 @@
-# League-CLI
-CLI utilities for league of legends
+# league-cli
+CLI utilities for League of Legends
