@@ -74,6 +74,9 @@ public class Shell {
         } else {
             try {
                 c.run(opts);
+                if (c.getExitCode() < 0) {
+                    ctx.getOutput().println("Command Failed with exit code: " + c.getExitCode());
+                }
             } catch (Exception e) {
                 logger.warning("Command Failed with exit code: " + c.getExitCode());
             }

@@ -11,6 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -21,7 +22,7 @@ import java.util.Map;
  */
 public class SummonerStats implements Command {
 
-    private static Map<String, Map<String, ChampionStatistics>> statisticsRegistry = new HashMap<String, Map<String, ChampionStatistics>>();
+    private static Map<String, Map<String, ChampionStatistics>> statisticsRegistry = new LinkedHashMap<String, Map<String, ChampionStatistics>>();
     private static final String QUERY_URL = "https://na.api.pvp.net/api/lol/NA/v1.3/stats/by-summoner/%d/ranked?season=SEASON2017&api_key=%s";
     private static final String SUMMONER_ID_URL = "https://na.api.pvp.net/api/lol/na/v1.4/summoner/by-name/%s?api_key=%s";
     private static final Logger logger = Logger.getLogger(SummonerStats.class.getName());
@@ -63,6 +64,7 @@ public class SummonerStats implements Command {
                         logger.warning("Server returned status code: " + id_response.getStatusLine().getStatusCode());
                         ctx.getOutput().println("Summoner ID not found for " + opts.getOptionValue("-n"));
                     }
+                    logger.info("Server Returned: " + id_response.getJSONData());
                     JSONArray array = new JSONArray("[" + id_response.getJSONData() + "]");
                     JSONObject obj = array.getJSONObject(0);
                     int summoner_id = obj.getJSONObject(opts.getOptionValue("-n").toLowerCase()).getInt("id");
@@ -78,16 +80,18 @@ public class SummonerStats implements Command {
                     JSONArray champion_data = obj1.getJSONArray("champions");
 
                     if (!statisticsRegistry.containsKey(opts.getOptionValue("-n"))) {
-                        statisticsRegistry.put(opts.getOptionValue("-n"), new HashMap<String, ChampionStatistics>());
+                        statisticsRegistry.put(opts.getOptionValue("-n"), new LinkedHashMap<String, ChampionStatistics>());
                     }
                     populateChampionData(champion_data, opts);
                     displayData(opts);
                 } catch (Exception e) {
+                    logger.warning("Command Failed");
                     logger.warning(e.toString());
                     e.printStackTrace();
                     this.exitCode = -1;
                 }
             } else {
+                ctx.getOutput().println("[PERF] Retrieving cached result");
                 displayData(opts);
             }
         } else {
@@ -144,6 +148,11 @@ public class SummonerStats implements Command {
     }
 
     private void displayChampionData(String champion_name, ChampionStatistics statistics, CommandOptions opts) {
+        if (statistics == null) {
+            this.exitCode = -1;
+            ctx.getOutput().println("Invalid Champion name: " + champion_name);
+            return;
+        }
         ctx.getOutput().println(champion_name);
         ctx.getOutput().println("-----------------");
         for (String s : statistics.getGameStats().keySet()) {
@@ -178,7 +187,11 @@ public class SummonerStats implements Command {
         for (int i = 0; i < champion_data.length(); i++) {
             JSONObject object = champion_data.getJSONObject(i);
             JSONObject c = object.getJSONObject("stats");
-            champion_name = getChampionName(object.getInt("id"));
+            if (object.getInt("id") != 0) {
+                champion_name = getChampionName(object.getInt("id"));
+            } else {
+                champion_name = "Total Aggregated";
+            }
             ChampionStatisticsBuilder statisticsBuilder = new ChampionStatisticsBuilder();
             statisticsBuilder.game_stats(c.getInt("totalSessionsPlayed"), c.getInt("totalSessionsWon"),
                     c.getInt("totalSessionsLost"));
@@ -188,7 +201,7 @@ public class SummonerStats implements Command {
                     c.getInt("totalQuadraKills"), c.getInt("totalPentaKills"));
             statisticsBuilder.damage_stats(c.getInt("totalDamageDealt"), c.getInt("totalPhysicalDamageDealt"),
                     c.getInt("totalMagicDamageDealt"), c.getInt("totalDamageTaken"));
-            statisticsBuilder.misc_stats(c.getInt("totalTurretsTaken"), c.getInt("totalMinionKills"),
+            statisticsBuilder.misc_stats(c.getInt("totalTurretsKilled"), c.getInt("totalMinionKills"),
                     c.getInt("totalGoldEarned"), c.getInt("totalFirstBlood"));
             ChampionStatistics statistics = statisticsBuilder.build();
             if (!statisticsRegistry.get(summoner_name).containsKey(champion_name)) {
@@ -215,8 +228,8 @@ public class SummonerStats implements Command {
      * @return The man entry for this command
      */
     public String getManEntry() {
-        return  "Retrieves detailed champion statistics for the specified player." +
-                "Usage: summoner-stats (-n NAME) [-c CHAMPION] [-v[v]]. \n\n" +
+        return  "Usage: summoner-stats (-n NAME) [-c CHAMPION] [-v[v]]. \n\n" +
+                "Retrieves detailed champion statistics for the specified player. \n\n" +
                 "-n NAME - Name of the summoner to retrieve stats for. \n" +
                 "-c CHAMPION - Champion to retrieve stats for. \n" +
                 "-v Verbose - Display more details. \n" +
