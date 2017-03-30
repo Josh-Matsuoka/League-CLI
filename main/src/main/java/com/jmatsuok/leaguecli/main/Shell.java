@@ -85,13 +85,7 @@ public class Shell {
 
     //TODO: Handle multiple whitespaces
     private CommandOptions parseArgs(String input) {
-        // Command calls are a whitespace delimited list of tokens
-        List<String> tokens = Arrays.asList(input.split(" "));
-        if (tokens.size() == 0) {
-            return new CommandOptions(new ArrayList<String>(), "");
-        } else {
-            return new CommandOptions(tokens.subList(1, tokens.size()), tokens.get(0));
-        }
+        return new CommandOptions(input);
     }
 
     /**
