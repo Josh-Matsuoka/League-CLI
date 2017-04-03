@@ -15,12 +15,16 @@ public class CommandOptions {
 
     private final Logger logger = Logger.getLogger(CommandOptions.class.getName());
     private Map<String, String> optionsMap = new HashMap<String, String>();
-    private String commandName;
+    private String commandName ="";
     private List<String> argv = new ArrayList<String>();
-    private static final String ARG_STRING = "(\\s+(\\-\\w+)\\s+(\\w+\\s?\\w+)?)";
-    private static final String CMD_STRING = "([\\w\\-]+)" + ARG_STRING + "*";
-    private static final Pattern ARG_PATTERN = Pattern.compile(ARG_STRING);
+    private static final String SPACE = "\\s";
+    private static final String FLAG_STRING = "(\\-[\\w\\-]+)";
+    private static final String ARG_STRING = "([\\w\\-]*)?";
+    private static final String OPTION_STRING = SPACE + "+" + FLAG_STRING + SPACE + "*" + ARG_STRING;
+    private static final String CMD_STRING = "([\\w\\-]+)" + "(" + OPTION_STRING + ")*";
+    private static final Pattern OPTION_PATTERN = Pattern.compile(OPTION_STRING);
     private static final Pattern CMD_PATTERN = Pattern.compile(CMD_STRING);
+    
 
     /**
      * Construct a new instance
@@ -54,25 +58,26 @@ public class CommandOptions {
 
     private void parseOptionsFromList(String input) {
         Matcher m = CMD_PATTERN.matcher(input);
-        Matcher m2 = ARG_PATTERN.matcher(input);
-        logger.info("Input: " + input);
+        Matcher m2 = OPTION_PATTERN.matcher(input);
         if (m.matches()) {
-            logger.info("Command Pattern matched");
+            logger.finest("Command Pattern matched");
             this.commandName = m.group(1);
             this.argv.add(m.group(1));
         }
         while (m2.find()) {
-            logger.info("Arg pattern matched");
-            if (m2.groupCount() > 2) {
-                logger.info("Adding arg: " + m2.group(2) + " -> " + m2.group(3));
-                this.addOption(m2.group(2), m2.group(3));
-                this.argv.add(m2.group(2));
-                this.argv.add(m2.group(3));
+            logger.finest("Arg pattern matched");
+            logger.finest(""+m2.groupCount());
+            logger.finest(m2.group(1));
+            logger.finest(m2.group(2));
+            logger.finest("Adding arg: (" + m2.group(1) + ", " + m2.group(2) + ")");
+            if (!m2.group(2).startsWith("-")) {
+                this.addOption(m2.group(1), m2.group(2));
             } else {
-                logger.info("Adding arg: " + m2.group(2));
+                this.addOption(m2.group(1), "");
                 this.addOption(m2.group(2), "");
-                this.argv.add(m2.group(2));
             }
+            this.argv.add(m2.group(1));
+            this.argv.add(m2.group(2));
         }
         logger.finest(this.optionsMap.toString());
     }

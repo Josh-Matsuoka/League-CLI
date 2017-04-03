@@ -4,10 +4,9 @@ import com.jmatsuok.leaguecli.main.client.CommandServer;
 import com.jmatsuok.leaguecli.main.command.Command;
 import com.jmatsuok.leaguecli.main.command.CommandOptions;
 import com.jmatsuok.leaguecli.main.command.MalformedOptionsException;
-import com.jmatsuok.leaguecli.main.command.impl.CurrentMatch;
-import com.jmatsuok.leaguecli.main.command.impl.Help;
-import com.jmatsuok.leaguecli.main.command.impl.SummonerInfo;
-import com.jmatsuok.leaguecli.main.command.impl.SummonerStats;
+import com.jmatsuok.leaguecli.main.command.impl.*;
+import jline.ArgumentCompletor;
+import jline.ConsoleReader;
 
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -16,6 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.logging.Logger;
+
+import jline.ArgumentCompletor.ArgumentDelimiter;
+import jline.ArgumentCompletor.ArgumentList;
 
 /**
  * Shell for executing commands
@@ -45,19 +47,26 @@ public class Shell {
         commandRegistry.put("help", new Help(ctx, commandRegistry));
         commandRegistry.put("summoner-info", new SummonerInfo(config, server, ctx));
         commandRegistry.put("summoner-stats", new SummonerStats(config, server, ctx));
+        commandRegistry.put("ranked-info", new RankedInfo(config, server, ctx));
     }
 
     /**
      * Begins running the shell's main loop
      */
     public void run() {
-        String nextLine = "";
-        while (!nextLine.equals("exit")) {
-            ctx.getOutput().print("> ");
-            nextLine = sc.nextLine();
-            parseAndRun(nextLine);
+        try {
+            ConsoleReader reader = new ConsoleReader();
+            reader.setDefaultPrompt("> ");
+            String next = "";
+            while(!next.equals("exit")) {
+                next = reader.readLine("> ");
+                parseAndRun(next);
+            }
+            server.tearDown();
+        } catch (Exception e) {
+            logger.warning("Unable to construct ConsoleReader");
+            e.printStackTrace();
         }
-        server.tearDown();
     }
 
     private void parseAndRun(String input) {
@@ -68,6 +77,7 @@ public class Shell {
         } else if (opts.getCommandName().equals("exit")) {
             return;
         }
+        logger.info(opts.getCommandName());
         Command c = commandRegistry.get(opts.getCommandName());
         if (c == null) {
             logger.warning("Unrecognized command: " + opts.getCommandName());
